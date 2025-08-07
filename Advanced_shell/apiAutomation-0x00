@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# Fetch data for Pikachu
+curl -s https://pokeapi.co/api/v2/pokemon/pikachu -o data.json
+
+# Check if the request was successful
+if [ $? -ne 0 ] || ! jq empty data.json 2>/dev/null; then
+    echo "Error fetching Pikachu data at $(date)" >> errors.txt
+    exit 1
+fi
