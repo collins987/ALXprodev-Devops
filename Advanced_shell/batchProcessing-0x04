@@ -2,22 +2,34 @@
 
 mkdir -p pokemon_data
 pokemons=("bulbasaur" "ivysaur" "venusaur" "charmander" "charmeleon")
+declare -A pids
 
 fetch_pokemon() {
     local pokemon=$1
     echo "Fetching data for $pokemon..."
     curl -s "https://pokeapi.co/api/v2/pokemon/$pokemon" -o "pokemon_data/${pokemon}.json"
 
-    if [ $? -eq 0 ]; then
+    if [ $? -eq 0 ] && jq empty "pokemon_data/${pokemon}.json" 2>/dev/null; then
         echo "Saved data to pokemon_data/${pokemon}.json ✅"
     else
         echo "Failed to fetch $pokemon data" >> errors.txt
     fi
 }
 
+# Launch all fetches in background and track PIDs
 for pokemon in "${pokemons[@]}"; do
     fetch_pokemon "$pokemon" &
+    pids[$pokemon]=$!
 done
 
-wait  # Wait for all background jobs to finish
+# Optionally wait and kill if timeout
+for pokemon in "${!pids[@]}"; do
+    pid=${pids[$pokemon]}
+
+    # Wait with a timeout of 10 seconds
+    ( sleep 10 && kill -0 $pid 2>/dev/null && echo "Killing hung process for $pokemon (PID $pid)" && kill -9 $pid && echo "$pokemon fetch timed out" >> errors.txt ) &
+
+    wait $pid
+done
+
 echo "✅ All data fetched in parallel."
